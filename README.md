@@ -10,7 +10,7 @@ Public legal pages for Nioctren applications, hosted with GitHub Pages.
 
 ## Add an application
 
-1. Copy `docs/_templates/privacy-policy.html` to `docs/<legal-slug>/index.html`.
+1. Copy `templates/privacy-policy.html` to `docs/<legal-slug>/index.html`.
 2. Replace `Template App` and `YYYY-MM-DD`.
 3. Review every statement against the application's real behavior.
 4. Add the application to `docs/index.html`.

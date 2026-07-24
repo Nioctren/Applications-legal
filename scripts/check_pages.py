@@ -44,7 +44,7 @@ def main() -> None:
         parser.feed(text)
         parser.close()
 
-        if "_templates" not in page.parts and ("Template App" in text or "YYYY-MM-DD" in text):
+        if "Template App" in text or "YYYY-MM-DD" in text:
             errors.append(f"Unresolved template token in {page.relative_to(ROOT)}")
 
         for href in parser.links:
