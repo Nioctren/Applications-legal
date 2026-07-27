@@ -29,13 +29,23 @@
   information. This data never leaves the device unless you explicitly export a
   backup file yourself.</p>
   <h2>Data transmission</h2>
-  <p>The application does not transmit user data to external servers.</p>
+  <p>Most features work fully offline and do not transmit user data to external
+  servers. One optional feature is an exception:</p>
+  <p><strong>Weather widget.</strong> If you add the Weather widget and enter a
+  city name, the application sends that city name and the coordinates derived
+  from it to <a href="https://open-meteo.com/">Open-Meteo</a> in order to
+  retrieve public weather information. No account, device identifier, precise
+  device location, or other personal data is transmitted. The application does
+  not request location permissions; the city is entered manually. The most recent
+  weather result is cached on your device so it can be shown offline. If you do
+  not add the Weather widget, the application makes no network requests for
+  weather.</p>
   <h2>Analytics, tracking, and advertising</h2>
   <p>The application does not use analytics, tracking, advertising identifiers, or advertising services.</p>
   <h2>Data sharing</h2>
   <p>The application does not share user data with third parties.</p>
   <h2>Permissions</h2>
-  <p>The application does not request sensitive Android permissions by default. This policy must be updated if permissions are added.</p>
+  <p>The application does not request sensitive Android permissions such as precise location, contacts, or camera. It uses only the standard Internet permission, and solely for the optional Weather widget described above.</p>
   <h2>Children's privacy</h2>
   <p>The application does not knowingly collect personal data from anyone, including children.</p>
   <h2>Changes</h2>
