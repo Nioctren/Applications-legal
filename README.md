@@ -6,7 +6,6 @@ Public legal pages for Nioctren applications, hosted with GitHub Pages.
 
 - Index: `https://nioctren.github.io/Applications-legal/`
 - Contact: `https://nioctren.github.io/Applications-legal/contact/`
-- Quest Journal: `https://nioctren.github.io/Applications-legal/jurney/`
 
 ## Add an application
 
