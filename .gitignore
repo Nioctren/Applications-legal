@@ -1,0 +1,10 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.jks
+*.keystore
+*.p12
+*.pem
+*.pfx
+.env
