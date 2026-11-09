@@ -5,6 +5,13 @@ Public legal pages for Nioctren applications, hosted with GitHub Pages.
 ## Public URL
 
 - Contact: `https://nioctren.github.io/Applications-legal/contact/`
+- Poll Up account deletion: `https://nioctren.github.io/Applications-legal/pollup/delete-account/`
+
+Poll Up deletion requests use the private email channel on that page, not public
+GitHub issues. The publisher must monitor the mailbox, verify account ownership
+and complete the application's account-erasure process, including authentication
+deletion and any pending retries. Publishing instructions does not automate
+deletion or finalize provider log/backup retention.
 
 ## Add an application
 

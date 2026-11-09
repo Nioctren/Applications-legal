@@ -141,7 +141,23 @@ class LegalPageTests(unittest.TestCase):
             page.parent.name for page in check_pages.DOCS.glob("*/index.html")
         }
         self.assertEqual(expected, actual)
-        self.assertEqual((10, []), check_pages.validate_pages())
+        self.assertEqual((11, []), check_pages.validate_pages())
+
+    def test_pollup_deletion_page_has_private_request_and_retention_details(self) -> None:
+        page = check_pages.DOCS / "pollup/delete-account/index.html"
+        text = page.read_text(encoding="utf-8")
+        for phrase in (
+            'lang="fr"', 'lang="en"', "mailto:nioctren@gmail.com",
+            "Settings → Delete my account", "without reinstalling",
+            "additional verification", "Other members retain",
+            "90 days", "backup retention", "public GitHub issues",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+        parser = check_pages.PageParser()
+        parser.feed(text)
+        self.assertIn("../", parser.links)
+        self.assertFalse(any("github.com" in link for link in parser.links))
 
     def test_updated_policies_cover_current_privacy_surfaces(self) -> None:
         required = {
