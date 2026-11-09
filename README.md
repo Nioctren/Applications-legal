@@ -9,11 +9,24 @@ Public legal pages for Nioctren applications, hosted with GitHub Pages.
 ## Add an application
 
 1. Copy `templates/privacy-policy.html` to `docs/<legal-slug>/index.html`.
-2. Replace `Template App` and `YYYY-MM-DD`.
+2. Replace `FOUNDATION_DISPLAY_NAME_TOKEN` and `FOUNDATION_DATE_TOKEN`.
 3. Review every statement against the application's real behavior.
-4. Add the application to `docs/index.html`.
-5. Run `python scripts/check_pages.py`.
+4. Keep the page independent: no policy index and no links to other applications.
+5. Run `python scripts/check_pages.py` and `python -m unittest discover -s scripts -p "test_*.py"`.
 6. Review, commit, and push manually.
 
 One application uses one lowercase kebab-case folder. Never publish secrets,
 personal data, signing material, or private repository details in these pages.
+
+There is deliberately no `docs/index.html`. Each application links directly to
+its own policy URL. The shared contact page must not link to policies or an index.
+This avoids navigation between applications, but is not access control: these
+pages and this repository are public, so URLs can still be discovered or shared.
+All HTML pages use `robots: noindex, nofollow` to discourage indexing and link
+following by compliant search engines. This is advisory, not a guarantee of
+secrecy; it does not hide files in the public repository.
+
+Policy updates are manual, not automatic copies of application documentation.
+Review storage, sharing, network requests, permissions and Android backup before
+each release. A local edit is not published until committed, pushed and deployed
+by GitHub Pages.

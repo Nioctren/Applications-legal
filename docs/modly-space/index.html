@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>Privacy Policy - Hello Modly</title>
   <style>
     :root { --brand: #6B4B34; --accent: #8F6B52; --border: #E4D6C8; --bg: #FFF7EE; }
@@ -16,14 +17,14 @@
 </head>
 <body>
   <h1>Privacy Policy</h1>
-  <p class="muted">Hello Modly - Last updated: 2026-07-29</p>
+  <p class="muted">Hello Modly - Last updated: 2026-11-08</p>
   <p><strong>Hello Modly</strong> ("the application") is an Android application.</p>
 
   <div class="card">
     <p><strong>In short:</strong> Hello Modly works entirely offline. It makes no
     network requests, has no account, no analytics, no advertising and no
-    tracking. Nothing you write or add is sent anywhere. Everything stays in the
-    private storage of your device.</p>
+    tracking. Your content stays in private device storage unless you explicitly
+    export or share it. A receiving app may use its own cloud services.</p>
   </div>
 
   <h2>Data collection</h2>
@@ -37,9 +38,15 @@
   - bucket lists and their items, personal journal entries, personal time
   counters, a totem, a personality-test or MBTI result, a chosen first name - and
   lightweight preferences such as a Daily Challenge completion streak or a chosen
-  zodiac sign for the Horoscope card. A zodiac sign is treated as a preference
-  only; the application never asks for or stores a birth date or any other
-  identifying information.</p>
+  zodiac sign for the Horoscope card. The optional My Birthday card stores a
+  month/day and, if you choose, a year to show your upcoming age. Friends'
+  birthdays store names and month/day only. Mood words, questionnaire results,
+  weekly reviews, saved daily pages and capsule favorites also remain local.</p>
+  <p><strong>Shared adventures.</strong> An adventure stores up to six member
+  names, goals, per-member progress, an outing date and a short text logbook.
+  A local member identifier indicates who you are; it is not included in exported
+  copies. There is no account, authenticated room or automatic synchronization.
+  Someone receiving a copy chooses their own local member identity.</p>
   <p><strong>Personal journal.</strong> Journal entries can contain sensitive
   personal thoughts. They are written to private application storage on your
   device only. They are never transmitted, never analysed, and never read by the
@@ -62,25 +69,41 @@
   daily content - quotes, words of the day, historical notes, positive thoughts,
   horoscope readings, challenges and ideas - is selected locally on your device
   from content shipped inside the application. No user data is transmitted to any
-  external server, including the publisher's.</p>
+  external server by Modly, including the publisher's. Explicit exports and
+  sharing may pass a copy to an app or destination you select; that app's
+  transmission and retention practices are outside Modly's control.</p>
 
   <h2>Analytics, tracking, and advertising</h2>
   <p>The application does not use analytics, tracking, advertising identifiers, or
   advertising services.</p>
 
   <h2>Data sharing</h2>
-  <p>The application does not send user data anywhere and does not sell data.
-  The only third party that may process your data is Android itself, through the
-  encrypted system backup or device transfer described in the Data storage
-  section, under your own Android and Google account settings.</p>
+  <p>The publisher does not sell data or receive your content. At your explicit
+  request, Modly can display an adventure QR code, copy its JSON to the clipboard,
+  save it to a chosen file, or hand a file to the Android share chooser. These
+  copies contain member names, goals, progress, outing date and notes. Share only
+  with people you trust. Anyone with a copy can read, retain and forward it;
+  deleting your local adventure does not recall exported copies.</p>
+  <p>The app you choose for sharing may upload or store the file under its own
+  privacy policy. Android may also process private preferences through the
+  encrypted system backup or device transfer described above, under your own
+  Android and Google account settings.</p>
 
   <h2>Permissions</h2>
-  <p>The application does not request sensitive Android permissions such as
-  location, contacts, camera, or microphone. It declares only the standard
-  Internet permission, which is currently unused: it is kept so that a future
-  optional online feature would not require adding a new permission. Any such
-  feature would require a new privacy review and an updated version of this
-  policy before release.</p>
+  <p>The standard Internet permission remains declared but unused by active
+  cards. Modly requests no location, contacts or microphone access.</p>
+  <p><strong>Camera (optional).</strong> Camera access is requested only when you
+  open the adventure QR scanner. Frames are processed on the device using a
+  bundled scanner; Modly does not save images or upload camera frames. You can
+  deny access and import a JSON file instead.</p>
+  <p><strong>Notifications (optional).</strong> Reminders are off by default.
+  Opting in requests Android notification permission. Modly schedules friends'
+  birthday reminders the day before at 9 am and a Sunday review at 6 pm when
+  the corresponding cards are enabled. Times are approximate and subject to
+  Android battery settings. The boot-completed permission restores scheduled
+  reminders after a restart; no exact-alarm permission is used. Notification
+  text can include a friend's name and may appear according to your Android
+  lock-screen settings. Opting out or erasing app data cancels reminders.</p>
 
   <h2>Children's privacy</h2>
   <p>The application does not knowingly collect personal data from anyone,
@@ -91,6 +114,9 @@
   application. You can export your data to a file; clipboard export is available
   as a warned fallback because other apps may read clipboard content. Hello Modly
   never uploads a manual export.</p>
+  <p>You can revoke camera or notification access in Android settings. You can
+  opt out of reminders inside Modly. Adventure sharing is always an explicit
+  action, not an automatic background transfer.</p>
   <p>You can delete your data and application preferences from
   <strong>Settings &gt; Backup &gt; Erase all data</strong>. Uninstalling removes
   local application storage, subject to Android backup and restore settings. You
