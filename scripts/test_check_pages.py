@@ -159,6 +159,24 @@ class LegalPageTests(unittest.TestCase):
         self.assertIn("../", parser.links)
         self.assertFalse(any("github.com" in link for link in parser.links))
 
+    def test_pollup_policy_describes_connected_app_and_links_deletion(self) -> None:
+        page = check_pages.DOCS / "pollup/index.html"
+        text = page.read_text(encoding="utf-8").lower()
+        for phrase in (
+            "last updated: 2026-11-09", "google sign-in", "supabase", "https",
+            "reports are not anonymous", "90 days", "manual administrator purge",
+            "wrapped", "backup retention", "mailto:nioctren@gmail.com",
+            'href="delete-account/"', "other members retain",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+        for obsolete in (
+            "the application does not collect personal data",
+            "it has no account, no sign-in and no backend",
+            "the application does not transmit user data to external servers",
+        ):
+            self.assertNotIn(obsolete, text)
+
     def test_updated_policies_cover_current_privacy_surfaces(self) -> None:
         required = {
             "modly-space": ("camera", "notifications", "clipboard", "backup"),
