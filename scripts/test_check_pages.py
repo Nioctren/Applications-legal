@@ -163,8 +163,8 @@ class LegalPageTests(unittest.TestCase):
         page = check_pages.DOCS / "pollup/index.html"
         text = page.read_text(encoding="utf-8").lower()
         for phrase in (
-            "last updated: 2026-11-09", "google sign-in", "supabase", "https",
-            "reports are not anonymous", "90 days", "manual administrator purge",
+            "last updated: 2026-11-10", "google sign-in", "supabase", "https",
+            "reports are not anonymous", "90 days", "daily automatic maintenance",
             "wrapped", "backup retention", "mailto:nioctren@gmail.com",
             'href="delete-account/"', "other members retain",
         ):
@@ -176,6 +176,24 @@ class LegalPageTests(unittest.TestCase):
             "the application does not transmit user data to external servers",
         ):
             self.assertNotIn(obsolete, text)
+
+    def test_pollup_retention_matches_deployed_backend(self) -> None:
+        policy = (check_pages.DOCS / "pollup/index.html").read_text(encoding="utf-8")
+        deletion = (check_pages.DOCS / "pollup/delete-account/index.html").read_text(encoding="utf-8")
+        for text in (policy, deletion):
+            for phrase in ("03:00 UTC", "12 months", "90 days", "30 days after closure",
+                           "ownership verification", "failed runs", "backup retention"):
+                with self.subTest(page=text[:40], phrase=phrase):
+                    self.assertIn(phrase, text)
+            for obsolete in ("manual administrator purge", "manually purged",
+                             "purge manuelle", "No automatic purge is configured",
+                             "ballots and awards persist until group deletion"):
+                self.assertNotIn(obsolete, text)
+        for phrase in ("03:15 UTC", "seven days", "palette color",
+                       "No group-photo upload", 'lang="fr"'):
+            self.assertIn(phrase, policy)
+        for phrase in ("12 mois", "90 jours", "30 jours après clôture", "délais légaux"):
+            self.assertIn(phrase, deletion)
 
     def test_updated_policies_cover_current_privacy_surfaces(self) -> None:
         required = {
