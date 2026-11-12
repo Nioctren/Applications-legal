@@ -167,7 +167,8 @@ class LegalPageTests(unittest.TestCase):
             "reports are not anonymous", "90 days", "daily automatic maintenance",
             "wrapped", "backup retention", "mailto:nioctren@gmail.com",
             'href="delete-account/"', "other members retain",
-            "testflight", "apple sign-in is not enabled",
+            "testflight", "native apple sign-in",
+            "secondary email/password sign-in", "supabase auth",
             "7, 30 or 90 days", "180 days", "social graph",
         ):
             with self.subTest(phrase=phrase):

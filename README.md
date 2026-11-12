@@ -14,12 +14,14 @@ deletion and any pending retries. Publishing instructions does not automate
 deletion or finalize provider log/backup retention.
 
 Poll Up's 2026-11-12 policy covers Android and the iOS build prepared for
-TestFlight, Google-only sign-in, the simplified feature scope and existing
+TestFlight, Google and native Apple sign-in, the simplified feature scope and existing
 backend records. Closed Daily Vote ballots are erased after progression
 recording; collective history follows the group's 7/30/90-day or default
 12-month setting, with pause/failure caveats. Its deletion page carries the same
 rules in French and English. Support deadlines are manual publisher targets,
 not automation. Provider log/backup durations remain unverified.
+The next local revision also discloses secondary email/password sign-in for
+existing review accounts; it does not embed credentials or grant special access.
 
 ## Add an application
 
