@@ -163,10 +163,12 @@ class LegalPageTests(unittest.TestCase):
         page = check_pages.DOCS / "pollup/index.html"
         text = page.read_text(encoding="utf-8").lower()
         for phrase in (
-            "last updated: 2026-11-10", "google sign-in", "supabase", "https",
+            "last updated: 2026-11-12", "google sign-in", "supabase", "https",
             "reports are not anonymous", "90 days", "daily automatic maintenance",
             "wrapped", "backup retention", "mailto:nioctren@gmail.com",
             'href="delete-account/"', "other members retain",
+            "testflight", "apple sign-in is not enabled",
+            "7, 30 or 90 days", "180 days", "social graph",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)

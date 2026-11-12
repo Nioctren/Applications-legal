@@ -13,11 +13,13 @@ and complete the application's account-erasure process, including authentication
 deletion and any pending retries. Publishing instructions does not automate
 deletion or finalize provider log/backup retention.
 
-Poll Up's 2026-11-10 policy describes deployed daily retention: closed Daily Vote
-ballots erased after progression recording, collective results purged after
-12 months and reports after 90 days, with pause/failure caveats. Its deletion
-page carries the same rules in French and English. Support deadlines are manual
-publisher targets, not automation. Provider log/backup durations remain unverified.
+Poll Up's 2026-11-12 policy covers Android and the iOS build prepared for
+TestFlight, Google-only sign-in, the simplified feature scope and existing
+backend records. Closed Daily Vote ballots are erased after progression
+recording; collective history follows the group's 7/30/90-day or default
+12-month setting, with pause/failure caveats. Its deletion page carries the same
+rules in French and English. Support deadlines are manual publisher targets,
+not automation. Provider log/backup durations remain unverified.
 
 ## Add an application
 
