@@ -163,7 +163,7 @@ class LegalPageTests(unittest.TestCase):
         page = check_pages.DOCS / "pollup/index.html"
         text = page.read_text(encoding="utf-8").lower()
         for phrase in (
-            "last updated: 2026-11-12", "google sign-in", "supabase", "https",
+            "last updated: 2026-11-15", "google sign-in", "supabase", "https",
             "reports are not anonymous", "90 days", "daily automatic maintenance",
             "wrapped", "backup retention", "mailto:nioctren@gmail.com",
             'href="delete-account/"', "other members retain",
@@ -179,6 +179,18 @@ class LegalPageTests(unittest.TestCase):
             "the application does not transmit user data to external servers",
         ):
             self.assertNotIn(obsolete, text)
+
+    def test_pollup_guest_play_is_disclosed_before_release(self) -> None:
+        policy = (check_pages.DOCS / "pollup/index.html").read_text(encoding="utf-8").lower()
+        deletion = (check_pages.DOCS / "pollup/delete-account/index.html").read_text(encoding="utf-8").lower()
+        for phrase in ("guest play (prepared, not yet available)", "unrecoverable",
+                       "random identifier", "confirm a merge", "account's data is kept",
+                       "only its hash is stored", "after 30 days", "jeu invité"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, policy)
+        for phrase in ("profil invité", "guest profile", "after 30 days without a group"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, deletion)
 
     def test_pollup_retention_matches_deployed_backend(self) -> None:
         policy = (check_pages.DOCS / "pollup/index.html").read_text(encoding="utf-8")
