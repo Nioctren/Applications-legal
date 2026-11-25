@@ -2,6 +2,8 @@
 
 Public legal pages for Nioctren applications, hosted with GitHub Pages.
 
+The local Projects Hub utility is available in `tools/projects-hub`.
+
 ## Public URL
 
 - Contact: `https://nioctren.github.io/Applications-legal/contact/`
