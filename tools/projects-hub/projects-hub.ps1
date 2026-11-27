@@ -7,7 +7,7 @@ Affiche la liste des applications avec leur état git, permet d'ouvrir la versio
 web locale d'une appli (flutter build web + serveur Python) et de commiter / pousser.
 
 .PARAMETER NoFetch
-Mode hors-ligne : ne contacte pas les remotes au chargement.
+Mode hors-ligne : ne contacte pas les remotes pendant les analyses.
 
 .PARAMETER Root
 Racine contenant les applications (par défaut : dossier parent de Applications-legal).
@@ -27,6 +27,7 @@ if (-not $Root) { $Root = Resolve-HubWorkspaceRoot }
 $Root = (Resolve-Path -LiteralPath $Root).Path
 $script:FlutterCommand = Resolve-HubFlutterCommand -Root $Root
 $script:PythonCommand = Resolve-HubPythonCommand -Root $Root
+$script:CachePath = Get-HubCachePath -Root $Root
 
 # ---------------------------------------------------------------------------
 # Helpers d'affichage et de saisie
@@ -77,13 +78,30 @@ function Get-ProjectRows {
         Write-Host ("`r Analyse {0}/{1} : {2,-30}" -f $index, $projects.Count, $project.Name) -NoNewline
         $state = Get-HubGitState -Path $project.Path -NoFetch:$NoFetch
         $rows += [pscustomobject]@{
-            Index   = $index
-            Project = $project
-            State   = $state
+            Index       = $index
+            Project     = $project
+            State       = $state
+            RefreshedAt = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         }
     }
     Write-Host ("`r" + (' ' * 60) + "`r") -NoNewline
     return $rows
+}
+
+function Save-ProjectRows($Rows) {
+    try { Save-HubCache -Path $script:CachePath -Root $Root -Rows @($Rows) }
+    catch {
+        Write-Host " Impossible d'enregistrer le cache : $($_.Exception.Message)" -ForegroundColor Red
+        Wait-Key
+    }
+}
+
+function Update-ProjectRow($Row, [switch]$LocalOnly) {
+    $project = Get-HubProject -Path $Row.Project.Path
+    $state = Get-HubGitState -Path $project.Path -NoFetch:($NoFetch -or $LocalOnly)
+    $Row.Project = $project
+    $Row.State = $state
+    $Row.RefreshedAt = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 }
 
 function Show-ProjectTable($Rows) {
@@ -91,13 +109,24 @@ function Show-ProjectTable($Rows) {
     $mode = 'fetch activé'
     if ($NoFetch) { $mode = 'hors-ligne (-NoFetch)' }
     Write-Title "Projects Hub — $Root  [$mode]"
-    Write-Host (" {0,-3} {1,-20} {2,-6} {3}" -f '#', 'Projet', 'Web', 'Git') -ForegroundColor White
+    $nameWidth = 20
+    $androidWidth = 7
+    $iosWidth = 3
+    foreach ($row in $Rows) {
+        $nameWidth = [Math]::Max($nameWidth, $row.Project.Name.Length)
+        $androidWidth = [Math]::Max($androidWidth, (Format-HubPlatform $row.Project.IsFlutter $row.Project.HasAndroid $row.Project.Version).Length)
+        $iosWidth = [Math]::Max($iosWidth, (Format-HubPlatform $row.Project.IsFlutter $row.Project.HasIos $row.Project.Version).Length)
+    }
+    $format = " {0,-3} {1,-$nameWidth} {2,-6} {3,-$androidWidth} {4,-$iosWidth} {5,-19} {6}"
+    Write-Host ($format -f '#', 'Projet', 'Web', 'Android', 'iOS', 'Analyse locale', 'Git') -ForegroundColor White
     foreach ($row in $Rows) {
         $web = '-'
         if ($row.Project.HasWeb) { $web = 'oui' }
         elseif ($row.Project.IsFlutter) { $web = 'non' }
         $label = Format-HubGitState -State $row.State
-        Write-Host (" {0,-3} {1,-20} {2,-6} " -f $row.Index, $row.Project.Name, $web) -NoNewline
+        $android = Format-HubPlatform $row.Project.IsFlutter $row.Project.HasAndroid $row.Project.Version
+        $ios = Format-HubPlatform $row.Project.IsFlutter $row.Project.HasIos $row.Project.Version
+        Write-Host ($format -f $row.Index, $row.Project.Name, $web, $android, $ios, $row.RefreshedAt, '') -NoNewline
         Write-Host $label -ForegroundColor (Get-StateColor $row.State)
     }
     $servers = @(Get-HubWebServers)
@@ -109,7 +138,8 @@ function Show-ProjectTable($Rows) {
     if (-not $script:FlutterCommand) { Write-Host ' Attention : flutter introuvable, les compilations Flutter sont désactivées.' -ForegroundColor Red }
     if (-not $script:PythonCommand) { Write-Host ' Attention : python introuvable, le serveur local est désactivé.' -ForegroundColor Red }
     Write-Host ''
-    Write-Host " [1-$($Rows.Count)] projet · R rafraîchir · Q quitter" -ForegroundColor White
+    Write-Host ' Donnees memorisees : les changements externes peuvent ne pas etre affiches.' -ForegroundColor Yellow
+    Write-Host " [1-$($Rows.Count)] projet · R rafraichir tout ou selection · Q quitter" -ForegroundColor White
 }
 
 # ---------------------------------------------------------------------------
@@ -279,7 +309,22 @@ function Show-ProjectMenu($Row) {
 # Boucle principale
 # ---------------------------------------------------------------------------
 
-$rows = Get-ProjectRows
+$rows = @()
+$loadedCache = $false
+if (Test-Path -LiteralPath $script:CachePath -PathType Leaf) {
+    try {
+        $rows = @(Read-HubCache -Path $script:CachePath -Root $Root)
+        $loadedCache = $true
+    }
+    catch {
+        Write-Host " Cache illisible ($($_.Exception.Message)) : nouvelle analyse necessaire." -ForegroundColor Yellow
+        Wait-Key
+    }
+}
+if (-not $loadedCache) {
+    $rows = @(Get-ProjectRows)
+    Save-ProjectRows $rows
+}
 while ($true) {
     Show-ProjectTable $rows
     $choice = Read-Host ' Choix'
@@ -291,12 +336,34 @@ while ($true) {
         }
         break
     }
-    if ($choice -match '^[rR]$') { $rows = Get-ProjectRows; continue }
+    if ($choice -match '^[rR]$') {
+        $selection = Read-Host ' Tout : * ; selection : numeros separes par des virgules ; annuler : entree'
+        if ([string]::IsNullOrWhiteSpace($selection)) { continue }
+        if ($selection.Trim() -eq '*') {
+            $rows = @(Get-ProjectRows)
+            Save-ProjectRows $rows
+            continue
+        }
+        try { $numbers = @(ConvertFrom-HubSelection -Text $selection.Trim() -Count $rows.Count) }
+        catch { Write-Host $_.Exception.Message -ForegroundColor Red; Wait-Key; continue }
+        foreach ($number in $numbers) {
+            $row = $rows[$number - 1]
+            Write-Host " Analyse : $($row.Project.Name)" -ForegroundColor Cyan
+            try { Update-ProjectRow $row }
+            catch { Write-Host " Echec pour $($row.Project.Name) : $($_.Exception.Message)" -ForegroundColor Red; Wait-Key }
+        }
+        Save-ProjectRows $rows
+        continue
+    }
 
     $number = 0
     if ([int]::TryParse($choice, [ref]$number) -and $number -ge 1 -and $number -le $rows.Count) {
-        Show-ProjectMenu $rows[$number - 1]
-        # L'état a pu changer (commit, push) : on recharge ce projet seulement.
-        $rows[$number - 1].State = Get-HubGitState -Path $rows[$number - 1].Project.Path -NoFetch
+        $row = $rows[$number - 1]
+        try { Update-ProjectRow $row -LocalOnly }
+        catch { Write-Host " Impossible d'ouvrir $($row.Project.Name) : $($_.Exception.Message)" -ForegroundColor Red; Wait-Key; continue }
+        Show-ProjectMenu $row
+        try { Update-ProjectRow $row -LocalOnly }
+        catch { Write-Host " Impossible d'actualiser $($row.Project.Name) : $($_.Exception.Message)" -ForegroundColor Red; Wait-Key }
+        Save-ProjectRows $rows
     }
 }

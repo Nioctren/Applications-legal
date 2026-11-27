@@ -98,8 +98,9 @@ try {
     # flutter_app : faux projet Flutter avec plateforme web.
     $flutterApp = Join-Path $projectsRoot 'flutter_app'
     New-Item -ItemType Directory -Force -Path (Join-Path $flutterApp 'web') | Out-Null
-    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value 'name: flutter_app'
+    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value @('name: flutter_app', 'version: 1.10.1+16 # application')
     Set-Content -LiteralPath (Join-Path $flutterApp 'web\index.html') -Value '<html></html>'
+    New-Item -ItemType Directory -Force -Path (Join-Path $flutterApp 'android'), (Join-Path $flutterApp 'ios') | Out-Null
 
     # flutter_noweb : projet Flutter sans dossier web.
     $flutterNoWeb = Join-Path $projectsRoot 'flutter_noweb'
@@ -167,10 +168,112 @@ try {
     Assert-Equal (($names | Sort-Object) -join ',') ($names -join ',') 'tri alphabétique'
     $flutterRow = $projects | Where-Object { $_.Name -eq 'flutter_app' }
     Assert-True ($flutterRow.IsFlutter -and $flutterRow.HasWeb) 'flutter_app : IsFlutter + HasWeb'
+    Assert-True ($flutterRow.HasAndroid -and $flutterRow.HasIos) 'plateformes Android et iOS presentes'
+    Assert-Equal '1.10.1+16' $flutterRow.Version 'version et build lus depuis pubspec'
+    Assert-Equal 'oui (1.10.1+16)' (Format-HubPlatform $flutterRow.IsFlutter $flutterRow.HasAndroid $flutterRow.Version) 'affichage Android avec version'
+    Assert-Equal 'oui (1.10.1+16)' (Format-HubPlatform $flutterRow.IsFlutter $flutterRow.HasIos $flutterRow.Version) 'affichage iOS avec version'
     $noWebRow = $projects | Where-Object { $_.Name -eq 'flutter_noweb' }
     Assert-True ($noWebRow.IsFlutter -and -not $noWebRow.HasWeb) 'flutter_noweb : IsFlutter sans web'
+    Assert-True (-not $noWebRow.HasAndroid -and -not $noWebRow.HasIos) 'plateformes absentes'
+    Assert-Equal 'non' (Format-HubPlatform $noWebRow.IsFlutter $noWebRow.HasIos $noWebRow.Version) 'plateforme Flutter absente'
+    Assert-Equal 'oui (?)' (Format-HubPlatform $true $true $noWebRow.Version) 'version manquante signalee'
     $notGitRow = $projects | Where-Object { $_.Name -eq 'not_git' }
     Assert-True (-not $notGitRow.IsFlutter -and -not $notGitRow.HasWeb) 'not_git : ni Flutter ni web'
+    Assert-Equal '-' (Format-HubPlatform $notGitRow.IsFlutter $notGitRow.HasAndroid $notGitRow.Version) 'projet non Flutter'
+    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value @('name: flutter_app', 'version: "2.0.0-beta.1+7"')
+    $quotedRow = @(Get-HubProjects -Root $projectsRoot | Where-Object { $_.Name -eq 'flutter_app' })[0]
+    Assert-Equal '2.0.0-beta.1+7' $quotedRow.Version 'version prerelease entre guillemets'
+    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value @('name: flutter_app', 'version: invalid')
+    $invalidRow = @(Get-HubProjects -Root $projectsRoot | Where-Object { $_.Name -eq 'flutter_app' })[0]
+    Assert-Equal 'oui (?)' (Format-HubPlatform $invalidRow.IsFlutter $invalidRow.HasAndroid $invalidRow.Version) 'version invalide signalee'
+    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value @('name: flutter_app', 'version: 1.0.0', 'version: 2.0.0')
+    $duplicateRow = @(Get-HubProjects -Root $projectsRoot | Where-Object { $_.Name -eq 'flutter_app' })[0]
+    Assert-Equal 'oui (?)' (Format-HubPlatform $duplicateRow.IsFlutter $duplicateRow.HasIos $duplicateRow.Version) 'version ambigue signalee'
+    Set-Content -LiteralPath (Join-Path $flutterApp 'pubspec.yaml') -Value @('name: flutter_app', 'version: 1.10.1+16')
+
+    # -----------------------------------------------------------------------
+    # Cache et rafraichissement selectif
+    # -----------------------------------------------------------------------
+    Write-Host '1b. Cache et rafraichissement' -ForegroundColor Cyan
+    $cacheDirectory = Join-Path $tempRoot 'cache'
+    $cachePath = Get-HubCachePath -Root $projectsRoot -CacheDirectory $cacheDirectory
+    Assert-Equal $cachePath (Get-HubCachePath -Root $projectsRoot.ToUpperInvariant() -CacheDirectory $cacheDirectory) 'cache partage pour les variantes de casse Windows'
+    Assert-True ($cachePath -ne (Get-HubCachePath -Root $emptyRoot -CacheDirectory $cacheDirectory)) 'cache distinct par workspace'
+    Save-HubCache -Path $cachePath -Root $projectsRoot -Rows @()
+    Assert-Equal 0 @(Read-HubCache -Path $cachePath -Root $projectsRoot).Count 'cache vide : aller-retour'
+    Assert-Equal '1,3' (@(ConvertFrom-HubSelection -Text '1, 3 1' -Count 3) -join ',') 'selection multiple dedupliquee'
+    $invalidSelection = $false
+    try { ConvertFrom-HubSelection -Text '1,4' -Count 3 | Out-Null } catch { $invalidSelection = $true }
+    Assert-True $invalidSelection 'selection hors limites refusee'
+    $invalidSelection = $false
+    try { ConvertFrom-HubSelection -Text '1,x' -Count 3 | Out-Null } catch { $invalidSelection = $true }
+    Assert-True $invalidSelection 'selection non numerique refusee'
+    Set-Content -LiteralPath $cachePath -Value '{invalid json'
+    $invalidCache = $false
+    try { Read-HubCache -Path $cachePath -Root $projectsRoot | Out-Null } catch { $invalidCache = $true }
+    Assert-True $invalidCache 'cache corrompu signale'
+
+    $originalLocalAppData = $env:LOCALAPPDATA
+    try {
+        $env:LOCALAPPDATA = Join-Path $tempRoot 'localappdata'
+        $hubScript = Join-Path $PSScriptRoot 'projects-hub.ps1'
+        $firstOutput = @('q' | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $projectsRoot -NoFetch 6>&1) -join "`n"
+        Assert-Equal 0 $LASTEXITCODE 'premier lancement reussi'
+        Assert-True ($firstOutput -match 'Analyse 1/') 'premier lancement analyse les projets'
+        $sessionCache = Get-HubCachePath -Root $projectsRoot
+        $cachedRows = @(Read-HubCache -Path $sessionCache -Root $projectsRoot)
+        Assert-Equal $projects.Count $cachedRows.Count 'premier lancement enregistre les projets'
+        $dirtyIndex = (@($cachedRows | Where-Object { $_.Project.Name -eq 'dirty' }))[0].Index
+        $noRemoteIndex = (@($cachedRows | Where-Object { $_.Project.Name -eq 'no_remote' }))[0].Index
+        $syncedBefore = (@($cachedRows | Where-Object { $_.Project.Name -eq 'synced' }))[0].RefreshedAt
+        Set-Content -LiteralPath (Join-Path $projectsRoot 'dirty\extra.txt') -Value 'x'
+        Set-Content -LiteralPath (Join-Path $projectsRoot 'no_remote\extra.txt') -Value 'x'
+        $cachedOutput = @('q' | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $projectsRoot -NoFetch 6>&1) -join "`n"
+        Assert-Equal 0 $LASTEXITCODE 'lancement depuis cache reussi'
+        Assert-True ($cachedOutput -notmatch 'Analyse 1/') 'lancement depuis cache sans analyse'
+        $selectionOutput = @(@('r', "$dirtyIndex,$noRemoteIndex", 'q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $projectsRoot -NoFetch 6>&1) -join "`n"
+        Assert-Equal 0 $LASTEXITCODE 'rafraichissement selectif reussi'
+        Assert-True ($selectionOutput -match 'Analyse : dirty' -and $selectionOutput -match 'Analyse : no_remote') 'seuls les projets choisis sont analyses'
+        $afterRows = @(Read-HubCache -Path $sessionCache -Root $projectsRoot)
+        Assert-Equal 2 (@($afterRows | Where-Object { $_.Project.Name -eq 'dirty' }))[0].State.Dirty 'cache du premier projet actualise'
+        Assert-Equal 1 (@($afterRows | Where-Object { $_.Project.Name -eq 'no_remote' }))[0].State.Dirty 'cache du second projet actualise'
+        Assert-Equal $syncedBefore (@($afterRows | Where-Object { $_.Project.Name -eq 'synced' }))[0].RefreshedAt 'autre projet non actualise'
+        $newProject = Join-Path $projectsRoot 'new_project'
+        New-Item -ItemType Directory -Path $newProject | Out-Null
+        $fullOutput = @(@('r', '*', 'q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $projectsRoot -NoFetch 6>&1) -join "`n"
+        Assert-Equal 0 $LASTEXITCODE 'rafraichissement complet reussi'
+        Assert-True ($fullOutput -match 'new_project') 'rafraichissement complet detecte un nouveau projet'
+        Remove-Item -LiteralPath $newProject
+        Set-Content -LiteralPath $sessionCache -Value '{invalid json'
+        $recoveryOutput = @(@('', 'q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $projectsRoot -NoFetch 6>&1) -join "`n"
+        Assert-Equal 0 $LASTEXITCODE 'recuperation apres cache corrompu'
+        Assert-True ($recoveryOutput -match 'Cache illisible' -and $recoveryOutput -match 'Analyse 1/') 'cache corrompu signale et analyse refaite'
+        Remove-Item -LiteralPath (Join-Path $projectsRoot 'dirty\extra.txt'), (Join-Path $projectsRoot 'no_remote\extra.txt')
+
+        $fetchRoot = Join-Path $tempRoot 'fetch_projects'
+        $fetchBare = Join-Path $tempRoot 'fetch_remote.git'
+        New-Item -ItemType Directory -Path $fetchRoot | Out-Null
+        Invoke-Git $tempRoot @('init', '-q', '--bare', '-b', 'main', $fetchBare) | Out-Null
+        $fetchRepo = Join-Path $fetchRoot 'app'
+        New-Repo $fetchRepo
+        Add-Commit $fetchRepo 'first.txt' 'initial'
+        Invoke-Git $fetchRepo @('remote', 'add', 'origin', $fetchBare) | Out-Null
+        Invoke-Git $fetchRepo @('push', '-q', '-u', 'origin', 'main') | Out-Null
+        $fetchOther = Join-Path $tempRoot 'fetch_other'
+        Invoke-Git $tempRoot @('clone', '-q', $fetchBare, $fetchOther) | Out-Null
+        Invoke-Git $fetchOther @('config', 'user.email', 'hub-tests@example.invalid') | Out-Null
+        Invoke-Git $fetchOther @('config', 'user.name', 'Hub Tests') | Out-Null
+        Add-Commit $fetchOther 'second.txt' 'remote'
+        Invoke-Git $fetchOther @('push', '-q') | Out-Null
+        @('q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $fetchRoot -NoFetch 6>&1 | Out-Null
+        @('r', '1', 'q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $fetchRoot -NoFetch 6>&1 | Out-Null
+        $fetchCache = Get-HubCachePath -Root $fetchRoot
+        Assert-Equal 0 (@(Read-HubCache -Path $fetchCache -Root $fetchRoot))[0].State.Behind 'selection hors ligne ne fait pas de fetch'
+        @('r', '1', 'q') | & powershell -NoProfile -ExecutionPolicy Bypass -File $hubScript -Root $fetchRoot 6>&1 | Out-Null
+        Assert-Equal 0 $LASTEXITCODE 'rafraichissement avec fetch reussi'
+        Assert-Equal 1 (@(Read-HubCache -Path $fetchCache -Root $fetchRoot))[0].State.Behind 'selection avec fetch detecte le commit distant'
+    }
+    finally { $env:LOCALAPPDATA = $originalLocalAppData }
 
     # -----------------------------------------------------------------------
     # 2. État git
@@ -332,7 +435,7 @@ try {
     $missingAndroid = Invoke-HubAndroidAppBundle -Path $flutterNoWeb -FlutterCommand $stubFlutter
     Assert-True (-not $missingAndroid.Success -and $missingAndroid.Message -like '*Android absente*') 'AAB : plateforme absente signalee'
     Assert-Equal $beforeAndroid (Get-Content -LiteralPath $androidArgs -Raw) 'AAB : Flutter non invoque sans plateforme Android'
-    New-Item -ItemType Directory -Path (Join-Path $flutterApp 'android') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $flutterApp 'android') | Out-Null
     $bundle = Invoke-HubAndroidAppBundle -Path $flutterApp -FlutterCommand $stubFlutter
     $bundlePath = Join-Path $flutterApp 'build\app\outputs\bundle\release\app-release.aab'
     Assert-True ($bundle.Success -and (Test-Path -LiteralPath $bundlePath)) 'AAB : build release produit'

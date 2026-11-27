@@ -14,18 +14,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Applications-legal\tools\p
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Applications-legal\tools\projects-hub\projects-hub.ps1 -NoFetch   # hors-ligne
 ```
 
-Au démarrage, le hub fait un `git fetch` sur chaque dépôt ayant un remote pour détecter
-les commits distants non récupérés. `-NoFetch` saute cette étape.
+Au premier démarrage, le hub analyse les projets et effectue un `git fetch` sur
+chaque dépôt ayant un remote. Les démarrages suivants affichent immédiatement
+la dernière analyse enregistrée. `R` permet de rafraîchir tous les projets
+(`*`) ou une sélection de numéros (par exemple `1,3`). Un rafraîchissement
+complet détecte aussi les projets ajoutés ou supprimés. `-NoFetch` évite tout
+fetch pendant ces analyses.
 Par defaut, le workspace est le dossier parent du depot Applications-legal.
 Utiliser `-Root <chemin>` pour choisir une autre racine.
+
+Le cache est enregistré par workspace dans `%LOCALAPPDATA%\ProjectsHub` : il
+contient les chemins, les états Git et les derniers messages de commit, et n'est
+pas versionné. La date de chaque ligne indique la dernière analyse locale ;
+après ouverture d'un projet, cette analyse locale est mise à jour sans fetch.
+Les données distantes peuvent donc être plus anciennes. L'état local est relu
+avant les actions du menu, mais les changements externes ne sont visibles dans
+le tableau qu'après actualisation. Un cache illisible est signalé, puis remplacé
+par une nouvelle analyse. Une erreur d'enregistrement est également signalée.
 
 ## Écran principal
 
 ```
- #   Projet               Web    Git
- 1   Applications-legal   -      [MOD] 1 modif(s) (main)
- 2   echo                 non    [MOD] 18 modif(s) · [--] pas de remote (main)
- 3   hellomodly           oui    [OK] à jour (main)
+ #   Projet               Web    Android         iOS             Analyse locale      Git
+ 1   Applications-legal   -      -               -               2026-11-26 09:00:00 [MOD] 1 modif(s) (main)
+ 2   echo                 non    oui (1.0.0+1)   non             2026-11-26 09:00:01 [OK] à jour (main)
+ 3   jurney               oui    oui (1.10.1+16) oui (1.10.1+16) 2026-11-26 09:00:02 [OK] à jour (main)
 ```
 
 | Libellé | Sens |
@@ -42,8 +55,14 @@ Utiliser `-Root <chemin>` pour choisir une autre racine.
 
 Colonne **Web** : `oui` = projet Flutter avec dossier `web/`, `non` = projet Flutter sans
 plateforme web (activable depuis le menu), `-` = pas un projet Flutter.
+Les colonnes **Android** et **iOS** indiquent `non` si le dossier de plateforme
+est absent, `-` pour un projet non Flutter, ou `oui (version+build)` lorsqu'il
+est present. La version est lue dans `pubspec.yaml`, commune aux plateformes ;
+`oui (?)` indique une version absente ou non reconnue. Elle ne confirme ni la
+version publiee ni une eventuelle surcharge lors d'une compilation.
 
-Touches : numéro du projet, `R` rafraîchir, `Q` quitter (propose d'arrêter les serveurs web lancés).
+Touches : numéro du projet, `R` rafraîchir tout ou une sélection, `Q` quitter
+(propose d'arrêter les serveurs web lancés).
 
 ## Menu d'un projet
 

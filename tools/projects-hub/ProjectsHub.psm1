@@ -38,13 +38,115 @@ function Get-HubProjects {
         Sort-Object Name
 
     foreach ($folder in $folders) {
+        Get-HubProject -Path $folder.FullName
+    }
+}
+
+function Get-HubProject {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path)
+
+    $folder = Get-Item -LiteralPath $Path -ErrorAction Stop
+    if (-not $folder.PSIsContainer) { throw "Ce projet n'est pas un dossier : $Path" }
+        $pubspec = Join-Path $folder.FullName 'pubspec.yaml'
+        $isFlutter = Test-Path -LiteralPath $pubspec -PathType Leaf
+        $version = $null
+        if ($isFlutter) {
+            $versionLines = @(Get-Content -LiteralPath $pubspec -ErrorAction Stop | Where-Object { $_ -match '^version\s*:' })
+            if ($versionLines.Count -eq 1 -and $versionLines[0] -match '^version\s*:\s*(?<quote>[''"]?)(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\k<quote>\s*(?:#.*)?$') {
+                $version = $Matches['version']
+            }
+        }
         [pscustomobject]@{
             Name      = $folder.Name
             Path      = $folder.FullName
-            IsFlutter = Test-Path -LiteralPath (Join-Path $folder.FullName 'pubspec.yaml')
+            IsFlutter = $isFlutter
             HasWeb    = Test-Path -LiteralPath (Join-Path $folder.FullName 'web\index.html')
+            HasAndroid = $isFlutter -and (Test-Path -LiteralPath (Join-Path $folder.FullName 'android') -PathType Container)
+            HasIos     = $isFlutter -and (Test-Path -LiteralPath (Join-Path $folder.FullName 'ios') -PathType Container)
+            Version    = $version
         }
+}
+
+function Get-HubCachePath {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Root, [string]$CacheDirectory = (Join-Path $env:LOCALAPPDATA 'ProjectsHub'))
+
+    $normalized = [IO.Path]::GetFullPath($Root).TrimEnd('\').ToUpperInvariant()
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $hash = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+    return Join-Path $CacheDirectory "$hash.json"
+}
+
+function Save-HubCache {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Root, [AllowEmptyCollection()][object[]]$Rows)
+
+    $directory = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $directory -PathType Container)) { New-Item -ItemType Directory -Path $directory -Force -ErrorAction Stop | Out-Null }
+    $document = [ordered]@{ Schema = 1; Root = [IO.Path]::GetFullPath($Root); Rows = @($Rows) }
+    $json = ConvertTo-Json -InputObject $document -Depth 8
+    $temporary = "$Path.$([guid]::NewGuid().ToString('N')).tmp"
+    try {
+        [IO.File]::WriteAllText($temporary, $json, [Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $temporary -Destination $Path -Force -ErrorAction Stop
     }
+    finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction Stop }
+    }
+}
+
+function Read-HubCache {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Root)
+
+    $cache = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    if (-not $cache -or $cache.Schema -ne 1 -or $cache.Root -ne [IO.Path]::GetFullPath($Root) -or $null -eq $cache.Rows) {
+        throw 'Format ou racine du cache invalide.'
+    }
+    $index = 0
+    foreach ($row in @($cache.Rows)) {
+        $index++
+        if (-not $row.Project -or -not $row.State -or -not $row.Project.Name -or
+            $row.Project.Name -in @('.', '..') -or [IO.Path]::GetFileName($row.Project.Name) -ne $row.Project.Name -or
+            $row.Project.Path -ne (Join-Path $Root $row.Project.Name) -or
+            -not $row.RefreshedAt) { throw 'Entree de cache invalide.' }
+        foreach ($name in @('IsFlutter', 'HasWeb', 'HasAndroid', 'HasIos', 'Version')) {
+            if (-not $row.Project.PSObject.Properties[$name]) { throw "Cache incomplet : $name." }
+        }
+        foreach ($name in @('IsRepo', 'Branch', 'RemoteName', 'HasRemote', 'HasUpstream', 'Dirty', 'Ahead', 'Behind', 'FetchFailed', 'LastCommit', 'Error')) {
+            if (-not $row.State.PSObject.Properties[$name]) { throw "Cache incomplet : $name." }
+        }
+        $row.Index = $index
+    }
+    return @($cache.Rows)
+}
+
+function ConvertFrom-HubSelection {
+    [CmdletBinding()]
+    param([string]$Text, [int]$Count)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { throw 'Indiquer au moins un numero.' }
+    $numbers = @()
+    foreach ($part in ($Text -split '[,\s]+')) {
+        $number = 0
+        if (-not [int]::TryParse($part, [ref]$number) -or $number -lt 1 -or $number -gt $Count) {
+            throw "Selection invalide : $part. Indiquer des numeros de 1 a $Count."
+        }
+        if ($numbers -notcontains $number) { $numbers += $number }
+    }
+    return $numbers
+}
+
+function Format-HubPlatform {
+    [CmdletBinding()]
+    param([bool]$IsFlutter, [bool]$Present, [string]$Version)
+
+    if (-not $IsFlutter) { return '-' }
+    if (-not $Present) { return 'non' }
+    if (-not $Version) { return 'oui (?)' }
+    return "oui ($Version)"
 }
 
 # ---------------------------------------------------------------------------
@@ -665,7 +767,7 @@ function Open-HubUrl {
     return $target
 }
 
-Export-ModuleMember -Function Get-HubProjects, Invoke-HubGit, Get-HubGitState, Format-HubGitState, Test-HubGitSynced,
+Export-ModuleMember -Function Get-HubProjects, Get-HubProject, Get-HubCachePath, Save-HubCache, Read-HubCache, ConvertFrom-HubSelection, Format-HubPlatform, Invoke-HubGit, Get-HubGitState, Format-HubGitState, Test-HubGitSynced,
     Get-HubDefaultCommitMessage, Get-HubGitSummary, Invoke-HubCommit, Invoke-HubPush, Invoke-HubPullRebase,
     Resolve-HubWorkspaceRoot, Resolve-HubFlutterCommand, Resolve-HubPythonCommand, Get-HubFreePort, Enable-HubWebPlatform, Invoke-HubWebBuild, Get-HubProjectConfig, Invoke-HubProjectChecks, Invoke-HubAndroidAppBundle,
     Start-HubWebServer, Get-HubWebServers, Stop-HubWebServers, Open-HubUrl
